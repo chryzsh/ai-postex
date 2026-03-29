@@ -77,9 +77,9 @@ void DebugPrintEmbeddingAsHex(const std::vector<float>& v)
 /**
  * @brief Returns a similarity score in the closed interval [0 .. 1].
  *
- *   1.0 -> embeddings are identical (angle 0°)
- *   0.0 -> embeddings are orthogonal, opposite, or invalid (angle = 90°)
- *   -1.0 -> embeddings are  opposite, or invalid (angle = 0°)
+ *   1.0 -> embeddings are identical (angle 0ï¿½)
+ *   0.0 -> embeddings are orthogonal, opposite, or invalid (angle = 90ï¿½)
+ *   -1.0 -> embeddings are  opposite, or invalid (angle = 0ï¿½)
  *
  * @return 0.0f - 1.0f truncated per the above scale such that dissimilar embeddings are excluded
  * 
@@ -224,8 +224,8 @@ LearningModel LoadModelFromStream(IRandomAccessStreamReference const& modelStrea
  * Behaviour is intentionally parallel to `TokenizeTexts` but simpler:
  *   - Adds `[CLS]` at position 0 and `[SEP]` at the end.
  *   - For each byte `b` in the input string
- *         – looks up the 1-byte string `std::string(1, b)` in @p vocab;
- *         – on miss or id = `VOCAB_LIMIT`, emits `[UNK]`.
+ *         ï¿½ looks up the 1-byte string `std::string(1, b)` in @p vocab;
+ *         ï¿½ on miss or id = `VOCAB_LIMIT`, emits `[UNK]`.
  *   - Stops early if emitting the next token would exceed max_length
  *     *(room is always kept for the final `[SEP]`)*.
  *   - Pads with `[PAD]` out to `g_PAD_LENGTH` if the result is shorter.
@@ -414,7 +414,7 @@ END_TOKENIZATION:
  * @note The `offsets` field in `TokenizedInput` is optional. If it is empty, no offsets tensor will be bound.
  * @note This function assumes the model expects inputs named `"input_ids"` and optionally `"offsets"`.
  */
- // BindTokenizedInput  —  minimal & correct for single-bag inference
+ // BindTokenizedInput  ï¿½  minimal & correct for single-bag inference
 VOID BindTokenizedInput(
     LearningModelBinding& binding,
     const TokenizedInput& tokenized_input)
@@ -533,16 +533,16 @@ VocabType ParseVocabFromBuffer(const UCHAR* buffer) {
  *        `TensorFloat`.
  *
  * The ONNX models used with Windows ML may emit either
- *  - a single pooled embedding with shape **[1 × 768]**, or
- *  - token-level embeddings with shape **[seq_len × 768]**.
+ *  - a single pooled embedding with shape **[1 ï¿½ 768]**, or
+ *  - token-level embeddings with shape **[seq_len ï¿½ 768]**.
  *
  * This helper transparently handles both cases:
- * 1. The tensor’s raw data are copied into a `std::vector<float>` so the
+ * 1. The tensorï¿½s raw data are copied into a `std::vector<float>` so the
  *    result remains valid after the original tensor is destroyed.
  * 2. If the tensor contains *token* embeddings (`shape[0] > 1`), the function
  *    **mean-pools across the token dimension**, yielding a single 768-d
  *    vector that represents the entire sentence.
- * 3. If the tensor is already `[1 × 768]`, the data are returned unchanged.
+ * 3. If the tensor is already `[1 ï¿½ 768]`, the data are returned unchanged.
  *
  * @param t  A `TensorFloat` produced by a Windows ML inference call, whose
  *           last dimension is the hidden-size (e.g. 768 for BERT/BGE).
@@ -689,13 +689,13 @@ float SemanticComparison(LearningModel model, std::string string_1, std::string 
  *
  * Behaviour
  * ---------
- * • If the reference contains the same number of words as (or more words
+ * ï¿½ If the reference contains the same number of words as (or more words
  *   than) the target, the function falls back to a direct comparison via
  *   `SemanticComparison`.
- * • Otherwise it:
+ * ï¿½ Otherwise it:
  *     1. Embeds the reference phrase once.
  *     2. Splits the target into whitespace-separated words.
- *     3. Slides a fixed-width window equal to the reference’s word-count
+ *     3. Slides a fixed-width window equal to the referenceï¿½s word-count
  *        across the target, advancing by *stride* words each step
  *        (default = 1).
  *     4. Embeds each window slice, calculates cosine similarity against the
@@ -875,7 +875,7 @@ Cleanup:
  * - If the similarity exceeds the given threshold, it reports the match via `BeaconPrintf`.
  *
  * @param model A `LearningModel` capable of generating embeddings for semantic similarity.
- * @param reference_semantic_string The string to compare each file’s content against semantically.
+ * @param reference_semantic_string The string to compare each fileï¿½s content against semantically.
  * @param threshold A float between 0 and 1 representing the similarity threshold for reporting matches.
  * @param root_search_directory A null-terminated C-string path to the root directory to begin traversal.
  * @param parsed_vocab Buffer containing a parsed vocab
@@ -925,18 +925,19 @@ BOOL SemanticSearchDirectoryContents(LearningModel model, std::string reference_
         if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             // Recurse into subdirectories
             if (!SemanticSearchDirectoryContents(model, (query + reference_semantic_string), parsed_vocab, threshold, fullPath.c_str())) {
-                FindClose(hFind);
-                return FALSE;
+                continue;
             }
         } else {
-            // Call IsValidFile on the current file
+            // Skip files with unsupported extensions
             if (!IsValidFile(fullPath.c_str())) {
-                FindClose(hFind);
-                return FALSE;
+                continue;
             }
 
             // extract text from file
             const unsigned char* extracted_text = extract_text(fullPath.c_str(), strlen(fullPath.c_str()));
+            if (extracted_text == NULL) {
+                continue;
+            }
             size_t extracted_text_length = MIN(MAX_SEMANTIC_WINDOW, strlen((const char*) extracted_text));
 
             // convert extracted text to string
