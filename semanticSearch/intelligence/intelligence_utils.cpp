@@ -945,8 +945,9 @@ BOOL SemanticSearchDirectoryContents(LearningModel model, std::string reference_
 
             float similarity = 0.0f;
 
-            // calculate semantic similarity
-            similarity = SemanticComparison(model, reference_semantic_string, extracted_text_string, parsed_vocab);
+            // Use sliding window for documents larger than the reference string
+            // to catch localized matches within large documents
+            similarity = SemanticComparisonSliding(model, reference_semantic_string, extracted_text_string, parsed_vocab, threshold);
 
             PRINT("Similarity: %lf\n", similarity);
             // check similarity
