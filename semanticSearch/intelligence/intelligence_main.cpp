@@ -105,7 +105,7 @@ BOOL IntelligenceMain(PPOSTEX_DATA postexData){
 
     UCHAR*  decompressed_model = NULL;
     SIZE_T  decompressed_size  = 0x0;
-    SIZE_T  model_size         = model_onnx_smol_start - &model_onnx_smol_end;
+    SIZE_T  model_size         = &model_onnx_smol_end - model_onnx_smol_start;
 
     PRINT("[i] start of model is: %p\n", model_onnx_smol_start);
     PRINT("[i] end of model is: %p\n", &model_onnx_smol_end);
