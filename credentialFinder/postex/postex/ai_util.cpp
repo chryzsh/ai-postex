@@ -98,7 +98,7 @@ void PadWord(std::string &w, size_t paddedLength) {
  */
 std::vector<int64_t> EncodeWord(const std::string& w) {
 
-    std::unordered_map<char, int> char2idx = GenerateChars2Idx();
+    static std::unordered_map<char, int> char2idx = GenerateChars2Idx();
 
     // Get the encoded word by mapping each character to its index in char2idx dictionary
     std::vector<int64_t> encoded(w.size(), -1);
