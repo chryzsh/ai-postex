@@ -90,23 +90,20 @@ LearningModel LoadModel()
 /**
  * @brief Calculates the probability of a password given a test string using a deep learning model.
  *
+ * @param session       A pre-created LearningModelSession to reuse across calls.
  * @param deepPassModel The deep learning model to use for prediction.
  * @param testString    A pointer to a char array containing the test string.
  *
  * @return The predicted probability of the string being a password a float value between 0 and 1.
  */
-float GetPasswordProbability(LearningModel deepPassModel, UCHAR* testString) {
+float GetPasswordProbability(LearningModelSession& session, LearningModel deepPassModel, UCHAR* testString) {
 
     /* check the test string pointer and correct length */
     if (testString == NULL || strlen((char*)testString) < MIN_PASS_LENGTH || strlen((char*)testString) > MAX_PASS_LENGTH) {
         return 0.0f;
     }
 
-    /* Set model device to CPU for max compatability */
-    LearningModelDevice device = LearningModelDevice(LearningModelDeviceKind::Cpu);
-
-    /* Create Session and binding */
-    LearningModelSession session(deepPassModel, device);
+    /* Create binding from the reused session */
     LearningModelBinding binding(session);
 
     /* Get encodings from test strings */
@@ -206,7 +203,7 @@ BOOL IsValidFile(const CHAR* filePath) {
  * SemanticSearchDirectoryContents("C:\\Documents\\Reports", model, 0.85f, );
  * @endcode
  */
-BOOL SearchDirectoryForPasswords(const CHAR* rootPath, LearningModel deepPassModel, float threshold = .9999f) {
+BOOL SearchDirectoryForPasswords(const CHAR* rootPath, LearningModelSession& session, LearningModel deepPassModel, float threshold = .9999f) {
     
     WIN32_FIND_DATAA findFileData;
 
@@ -257,7 +254,7 @@ BOOL SearchDirectoryForPasswords(const CHAR* rootPath, LearningModel deepPassMod
 
         if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             /* Recurse into the subdirectory */
-            if (!SearchDirectoryForPasswords(fullFilePath.c_str(), deepPassModel, threshold)) {
+            if (!SearchDirectoryForPasswords(fullFilePath.c_str(), session, deepPassModel, threshold)) {
                 continue;
             }
         }
@@ -280,7 +277,7 @@ BOOL SearchDirectoryForPasswords(const CHAR* rootPath, LearningModel deepPassMod
             for (auto word : fileWords) {
 
                 /* Get the probability that this "word" is a password */
-                probability = GetPasswordProbability(deepPassModel, (UCHAR*)word.c_str());
+                probability = GetPasswordProbability(session, deepPassModel, (UCHAR*)word.c_str());
 
                 /* if probability of password > threshold */
                 if (probability >= threshold) {
@@ -360,7 +357,11 @@ void PostexMain(PPOSTEX_DATA postexData) {
         return;
     }
 
-    SearchDirectoryForPasswords((const CHAR*)filePath, deepPassModel, threshold);
+    /* Create session once and reuse across all inferences */
+    LearningModelDevice device = LearningModelDevice(LearningModelDeviceKind::Cpu);
+    LearningModelSession session(deepPassModel, device);
+
+    SearchDirectoryForPasswords((const CHAR*)filePath, session, deepPassModel, threshold);
 
     BeaconPrintf(CALLBACK_OUTPUT, "Completed search on: %s", (char*)filePath);
 
