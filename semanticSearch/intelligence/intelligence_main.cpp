@@ -119,6 +119,12 @@ BOOL IntelligenceMain(PPOSTEX_DATA postexData){
     // Load Model
     LearningModel model = LoadModelFromBuffer(decompressed_model, decompressed_size);
 
+    // Free the decompressed buffer now that the model is loaded
+    if (decompressed_model != NULL) {
+        HeapFree(GetProcessHeap(), 0, decompressed_model);
+        decompressed_model = NULL;
+    }
+
     // Get a pointer to the static copy of vocab from Rust code
     const UCHAR* vocab = get_vocab();
 
