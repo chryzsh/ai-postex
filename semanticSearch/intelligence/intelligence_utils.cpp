@@ -710,8 +710,12 @@ float SemanticComparison(LearningModel model, std::string string_1, std::string 
  * @param threshold   Early-exit threshold (>= 0 & <= 1).
  * @return            Maximum similarity in [0 .. 1]; 0 if error/empty.
  */
-float SemanticComparisonSliding(
+/**
+ * @brief Internal sliding window implementation that accepts a pre-computed reference embedding.
+ */
+float SemanticComparisonSlidingWithEmbedding(
     const LearningModel& model,
+    const std::vector<float>& ref_emb,
     const std::string& reference,
     const std::string& target,
     VocabType            parsed_vocab,
@@ -738,16 +742,14 @@ float SemanticComparisonSliding(
     }
 
     if (win_len >= tgt_len) {
-        return SemanticComparison(model, reference, target, parsed_vocab);
+        // Direct comparison for short targets
+        std::vector<float> tgt_emb = EvaluateModel(model, { target }, parsed_vocab);
+        return CalculateCosineSimilarity(ref_emb, tgt_emb);
     }
 
     if (stride == 0) {
         stride = 1; // default = 1 word
     }
-
-    // reference embedding once
-    std::vector<float> ref_emb =
-        EvaluateModel(model, { reference }, parsed_vocab);
 
     float max_similarity = 0.0f;
 
@@ -776,6 +778,22 @@ float SemanticComparisonSliding(
     }
 
     return max_similarity;
+}
+
+/**
+ * @brief Convenience wrapper that computes the reference embedding and delegates
+ *        to SemanticComparisonSlidingWithEmbedding.
+ */
+float SemanticComparisonSliding(
+    const LearningModel& model,
+    const std::string& reference,
+    const std::string& target,
+    VocabType            parsed_vocab,
+    float                threshold = 0.8f,
+    size_t               stride = 0)
+{
+    std::vector<float> ref_emb = EvaluateModel(model, { reference }, parsed_vocab);
+    return SemanticComparisonSlidingWithEmbedding(model, ref_emb, reference, target, parsed_vocab, threshold, stride);
 }
 
 
@@ -894,11 +912,11 @@ Cleanup:
  * SemanticSearchDirectoryContents(model, "confidential project scope", 0.85f, "C:\\Documents\\Reports");
  * @endcode
  */
-BOOL SemanticSearchDirectoryContents(LearningModel model, std::string reference_semantic_string, VocabType parsed_vocab, float threshold, const CHAR* root_search_directory) {
+/**
+ * @brief Internal recursive implementation with pre-computed reference embedding.
+ */
+static BOOL SemanticSearchDirectoryContentsInternal(LearningModel model, std::string reference_semantic_string, const std::vector<float>& ref_embedding, VocabType parsed_vocab, float threshold, const CHAR* root_search_directory) {
     std::string path(root_search_directory);
-
-    // Optional query string per the BGE documentation
-    std::string query("Represent this sentence for searching relevant passages: ");
 
     // Ensure the path ends with a backslash
     if (path.back() != '\\') {
@@ -923,8 +941,8 @@ BOOL SemanticSearchDirectoryContents(LearningModel model, std::string reference_
 
         std::string fullPath = path + findFileData.cFileName;
         if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            // Recurse into subdirectories
-            if (!SemanticSearchDirectoryContents(model, (query + reference_semantic_string), parsed_vocab, threshold, fullPath.c_str())) {
+            // Recurse into subdirectories, passing the cached embedding
+            if (!SemanticSearchDirectoryContentsInternal(model, reference_semantic_string, ref_embedding, parsed_vocab, threshold, fullPath.c_str())) {
                 continue;
             }
         } else {
@@ -945,9 +963,8 @@ BOOL SemanticSearchDirectoryContents(LearningModel model, std::string reference_
 
             float similarity = 0.0f;
 
-            // Use sliding window for documents larger than the reference string
-            // to catch localized matches within large documents
-            similarity = SemanticComparisonSliding(model, reference_semantic_string, extracted_text_string, parsed_vocab, threshold);
+            // Use sliding window with pre-computed reference embedding
+            similarity = SemanticComparisonSlidingWithEmbedding(model, ref_embedding, reference_semantic_string, extracted_text_string, parsed_vocab, threshold);
 
             PRINT("Similarity: %lf\n", similarity);
             // check similarity
@@ -967,4 +984,19 @@ BOOL SemanticSearchDirectoryContents(LearningModel model, std::string reference_
     }
 
     return TRUE;
+}
+
+/**
+ * @brief Public entry point: computes the reference embedding once, then delegates
+ *        to the internal recursive directory search.
+ */
+BOOL SemanticSearchDirectoryContents(LearningModel model, std::string reference_semantic_string, VocabType parsed_vocab, float threshold, const CHAR* root_search_directory) {
+    // Optional query string per the BGE documentation
+    std::string query("Represent this sentence for searching relevant passages: ");
+    std::string full_reference = query + reference_semantic_string;
+
+    // Compute reference embedding once for the entire search
+    std::vector<float> ref_embedding = EvaluateModel(model, { full_reference }, parsed_vocab);
+
+    return SemanticSearchDirectoryContentsInternal(model, full_reference, ref_embedding, parsed_vocab, threshold, root_search_directory);
 }
