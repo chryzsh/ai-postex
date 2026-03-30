@@ -58,12 +58,55 @@ process_stats/              # Performance benchmarks
 
 ## Build Requirements
 
-- Visual Studio with C++/WinRT support
-- Rust toolchain (see `rust-toolchain.toml` in each rust-addons folder)
-- Cobalt Strike Arsenal Kit (postex-kit headers: `beacon.h`, `dllmain.h`, `pipes.h`, `utils.h`, `macros.h`, `mock.h`, `debug.h`, `pch.h`)
-- Windows 11 SDK (for Windows ML APIs and Compression API)
+- **Windows 10/11** (build host)
+- **Visual Studio 2022** with C++ Desktop workload, C++/WinRT, and Windows 11 SDK
+- **Rust toolchain** (see `rust-toolchain.toml` in each rust-addons folder) with targets `x86_64-pc-windows-msvc` and `i686-pc-windows-msvc`
+- **Cobalt Strike Arsenal Kit** (proprietary, not included — you need a license)
 
-**Note:** Full source cannot be compiled without the Cobalt Strike Arsenal Kit due to licensing. The `dist/` folder contains pre-built DLLs.
+## How to Build
+
+The Arsenal Kit's `base/` directory is required but never committed. The build script
+creates a junction (symlink) to your local Arsenal Kit install at build time.
+
+### Quick start (PowerShell, on Windows)
+
+```powershell
+.\build\build.ps1 -ArsenalKitPath "C:\path\to\arsenal-kit"
+```
+
+This will:
+1. Validate the Arsenal Kit and create a `build\base\` junction pointing to `arsenal-kit\kits\postex\base\`
+2. Build Rust static libraries for the selected platform
+3. Invoke MSBuild to compile the DLLs
+
+### Options
+
+```powershell
+# Debug build for x86
+.\build\build.ps1 -ArsenalKitPath "C:\tools\arsenal-kit" -Configuration Debug -Platform x86
+
+# Only build Rust crates
+.\build\build.ps1 -ArsenalKitPath "C:\tools\arsenal-kit" -RustOnly
+
+# Skip Rust, only run MSBuild (if Rust libs already built)
+.\build\build.ps1 -ArsenalKitPath "C:\tools\arsenal-kit" -SkipRust
+```
+
+### semanticSearch model preparation
+
+semanticSearch requires a compressed ONNX model linked as a COFF object. To prepare it:
+
+1. Export or obtain the distilled bge-base-en-v1.5 ONNX model
+2. Compress with LZMS using `helpers/bin2smol/bin2smol.exe`
+3. Convert to COFF: `python semanticSearch/scripts/bin2coff.py model_onnx_smol model_onnx_smol.o x64`
+4. Place `model_onnx_smol.o` in `semanticSearch/models/`
+
+If the model object is missing, the build script will automatically skip semanticSearch and only build credentialFinder.
+
+### What NOT to commit
+
+The `build/base/` junction and everything it points to is proprietary Cobalt Strike code.
+The `.gitignore` in `build/` handles this, but never force-add files from that directory.
 
 ## Development Patterns
 
