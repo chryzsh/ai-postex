@@ -16,6 +16,9 @@
 #pragma comment(lib, "ntdll")
 #pragma comment(lib, "Secur32")
 
+// Required by the Arsenal Kit base — beacon.obj references this symbol.
+volatile char gPostexArgumentsBuffer[sizeof(POSTEX_ARGUMENTS)] = "_POSTEX_ARGUMENTS_";
+
 #include "intelligence_utils.cpp"
 
 void PrintModelIO(const LearningModel& model) {

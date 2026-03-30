@@ -25,6 +25,10 @@ using namespace Windows::AI::MachineLearning;
 using namespace Windows::Storage;
 using namespace Windows::Storage::Streams;
 
+// Required by the Arsenal Kit base — beacon.obj references this symbol.
+// The reflective loader overwrites the placeholder at load time with real arguments.
+volatile char gPostexArgumentsBuffer[sizeof(POSTEX_ARGUMENTS)] = "_POSTEX_ARGUMENTS_";
+
 #define MAX_PASS_LENGTH 32 // Per the model training
 #define MIN_PASS_LENGTH 7 // Per the model training
 
