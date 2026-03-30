@@ -1,0 +1,16 @@
+# Symlinked Arsenal Kit base directory (proprietary, never commit)
+base/
+
+# MSBuild output
+Debug/
+Release/
+x64/
+x86/
+*.obj
+*.pdb
+*.ilk
+*.iobj
+*.ipdb
+*.log
+*.tlog/
+*.lastbuildstate
