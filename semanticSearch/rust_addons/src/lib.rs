@@ -10,7 +10,7 @@ macro_rules! debug_println {
     };
 }
 
-static VOCAB: &[u8; 262028] = include_bytes!("../vocab.txt");
+static VOCAB: &[u8] = include_bytes!("../vocab.txt");
 /// Resolves a pointer to the contents of vocab.txt
 /// # Safety
 /// This function is marked as `unsafe` because it returns a raw pointer. 
