@@ -87,8 +87,8 @@ foreach ($h in $RequiredHeaders) {
 
 Write-Host "  Arsenal Kit validated." -ForegroundColor Green
 
-# --- Step 2: Create symlink for base/ ---
-Write-Host "[2/4] Setting up base/ symlink..." -ForegroundColor Yellow
+# --- Step 2: Link or copy base/ ---
+Write-Host "[2/4] Setting up base/ directory..." -ForegroundColor Yellow
 
 if (Test-Path $BaseLink) {
     $item = Get-Item $BaseLink -Force
@@ -97,19 +97,30 @@ if (Test-Path $BaseLink) {
         $target = (Get-Item $BaseLink).Target
         if ($target -ne $BaseSource) {
             Write-Warning "  Symlink points to '$target', expected '$BaseSource'. Recreating..."
-            Remove-Item $BaseLink -Force
-            New-Item -ItemType Junction -Path $BaseLink -Target $BaseSource | Out-Null
+            Remove-Item $BaseLink -Force -Recurse
+        } else {
+            Write-Host "  Symlink OK." -ForegroundColor Green
         }
     } else {
-        Write-Error "  '$BaseLink' exists but is not a symlink. Remove it manually."
-        exit 1
+        # It's a real directory (previous copy) — check if it's up to date
+        Write-Host "  base/ exists as directory (previous copy). Refreshing..."
+        Remove-Item $BaseLink -Force -Recurse
     }
-} else {
-    Write-Host "  Creating junction: base/ -> $BaseSource"
-    New-Item -ItemType Junction -Path $BaseLink -Target $BaseSource | Out-Null
 }
 
-Write-Host "  Base symlink ready." -ForegroundColor Green
+if (-not (Test-Path $BaseLink)) {
+    # Try junction first, fall back to copy for network/SMB drives
+    try {
+        New-Item -ItemType Junction -Path $BaseLink -Target $BaseSource -ErrorAction Stop | Out-Null
+        Write-Host "  Created junction: base/ -> $BaseSource" -ForegroundColor Green
+    } catch {
+        Write-Host "  Junction failed (network drive?), copying base/ instead..." -ForegroundColor Yellow
+        Copy-Item -Path $BaseSource -Destination $BaseLink -Recurse -Force
+        Write-Host "  Copied base/ from Arsenal Kit." -ForegroundColor Green
+    }
+}
+
+Write-Host "  Base directory ready." -ForegroundColor Green
 
 # --- Step 3: Build Rust static libraries ---
 if (-not $SkipRust) {

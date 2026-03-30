@@ -1,4 +1,4 @@
-# Symlinked Arsenal Kit base directory (proprietary, never commit)
+# Arsenal Kit base directory (symlinked or copied, proprietary, never commit)
 base/
 
 # MSBuild output
